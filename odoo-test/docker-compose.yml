@@ -1,0 +1,44 @@
+# Odoo 19 Community สำหรับทดสอบ odoo-mcp-chatgpt
+#
+# ตั้งชื่อ project ให้คงที่ เพราะ mcp-server ต้องเข้า network นี้
+# (ค่า ODOO_NETWORK ใน .env ของ repo ชี้มาที่ odoo19-mcp-test_default)
+#
+# ไม่มี caddy / ngrok / adminer เพราะไม่จำเป็นกับการทดสอบ MCP
+# ผูก 127.0.0.1 เท่านั้น ไม่เปิดออกอินเทอร์เน็ต
+
+name: odoo19-mcp-test
+
+services:
+  web:
+    image: odoo:19
+    container_name: odoo19-mcp-test-web
+    depends_on:
+      - db
+    # พอร์ตนี้มีไว้ให้คนดูหน้าเว็บ Odoo เท่านั้น
+    # mcp-server เรียกผ่าน docker network ด้วยชื่อ container ไม่ได้ใช้พอร์ตนี้
+    ports:
+      - "127.0.0.1:8069:8069"
+    environment:
+      - TZ=Asia/Bangkok
+      - HOST=db
+      - USER=odoo
+      - PASSWORD=odoo
+    volumes:
+      - odoo19-test-web:/var/lib/odoo
+    restart: unless-stopped
+
+  db:
+    image: postgres:15
+    container_name: odoo19-mcp-test-db
+    environment:
+      - TZ=Asia/Bangkok
+      - POSTGRES_USER=odoo
+      - POSTGRES_PASSWORD=odoo
+      - POSTGRES_DB=postgres
+    volumes:
+      - odoo19-test-db:/var/lib/postgresql/data
+    restart: unless-stopped
+
+volumes:
+  odoo19-test-web:
+  odoo19-test-db:

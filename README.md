@@ -30,6 +30,27 @@ repo นี้จึงมีไว้สำหรับเคสนั้นโ
 พฤติกรรมของ tool ตั้งใจให้เหมือนกันทั้งสอง repo — [NOTES.md](NOTES.md) ของที่นั่น
 ใช้อ้างอิงกับที่นี่ได้
 
+## ไม่มี Odoo ให้ทดสอบ? มีให้ในรีโปแล้ว
+
+`odoo-test/` มี Odoo 19 **Community** พร้อมสคริปต์ตั้งค่าให้ครบ ใช้ลองทั้งเส้นทาง
+ได้โดยไม่ต้องมี Odoo ของจริง
+
+```bash
+cd odoo-test
+docker compose up -d
+./setup.sh          # สร้าง db + demo data + bot user สิทธิ์ต่ำ
+```
+
+สคริปต์จะพิมพ์บรรทัด `ODOO_NETWORK=` กับ `ODOO_SERVERS=` ให้คัดลอกไปใส่ `.env`
+ของรีโป รันซ้ำได้ ถ้ามีของอยู่แล้วจะไม่สร้างซ้ำ (`--reset` ถ้าอยากล้างเริ่มใหม่)
+
+bot ที่สร้างให้มีแค่ `base.group_user` + `base.group_partner_manager`
+**ไม่ใช่ admin** ตรงกับที่แนะนำในหัวข้อความปลอดภัย — `odoo_get_models` จึงเรียก
+ไม่ได้โดยตั้งใจ
+
+Odoo ตัวนี้ผูก `127.0.0.1:8069` เท่านั้น (หน้าเว็บ: admin / admin) ส่วน
+mcp-server เรียกผ่าน docker network ด้วยชื่อ container ไม่ได้ใช้พอร์ตนั้น
+
 ## ต้องมีอะไรบ้าง
 
 - Docker + Docker Compose
