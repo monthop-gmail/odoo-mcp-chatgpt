@@ -65,6 +65,10 @@ curl -s -X POST http://127.0.0.1:8100/mcp \
 ต่อใน ChatGPT: **Settings → Apps & Connectors → Developer mode → เพิ่ม app →
 เลือก connection type เป็น Tunnel → เลือก tunnel ของคุณ**
 
+ทดสอบจาก ChatGPT จริงแล้ว ถามภาษาไทยว่า *"มี contact กี่คน แยกตามประเทศ"* แล้วมัน
+เลือก `odoo_read_group` มาสรุปให้เอง ตัวเลขตรงกับ Odoo ทุกบรรทัด — รายละเอียดใน
+[NOTES.md](NOTES.md#ยืนยันจาก-chatgpt-จริงแล้ว)
+
 ## ต่อ Odoo หลายเครื่องพร้อมกัน
 
 `ODOO_SERVERS` รับได้หลายเครื่องในไฟล์เดียว — agent เลือกด้วย argument `server`

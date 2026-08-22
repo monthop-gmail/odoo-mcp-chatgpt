@@ -14,7 +14,7 @@
 - [สามจุดที่สะดุดตอนต่อท่อ](#สามจุดที่สะดุดตอนต่อท่อ) — ทั้งหมดเสียเวลาไปคนละรอบ
 - [ความเสี่ยงเรื่อง schema กับ OpenAI](#ความเสี่ยงเรื่อง-schema-กับ-openai) — ตรวจก่อนเขียน tool
 - [ให้ container เห็น Odoo](#ให้-container-เห็น-odoo) — สามแบบ เลือกให้ถูก
-- [ที่ยังไม่ได้ยืนยัน](#ที่ยังไม่ได้ยืนยัน) — ต้องมีคนกดใน ChatGPT
+- [ยืนยันจาก ChatGPT จริงแล้ว](#ยืนยันจาก-chatgpt-จริงแล้ว) — 3 คำถามภาษาไทย ตัวเลขตรงทุกบรรทัด
 
 ## ทดสอบแล้ว
 
@@ -137,14 +137,44 @@ Domain = Annotated[list[str | list[Any]], Field(description="...")]
 อยู่แล้ว ทางแก้จึงไม่ใช่ไปเปิด Odoo ให้กว้างขึ้น แต่ให้ MCP เข้าไปอยู่ใน network
 เดียวกันแทน
 
-## ที่ยังไม่ได้ยืนยัน
+## ยืนยันจาก ChatGPT จริงแล้ว
 
-**ยังไม่ได้ทดสอบจากฝั่ง ChatGPT จริง** — ต้องมีคนเข้าไปกดเพิ่ม app ใน developer
-mode แล้วเลือก tunnel ที่ยืนยันได้คือท่อ handshake กับ mcp-server สำเร็จ
-(`mcp session initialized`) และ metrics ของ tunnel-client เห็น request วิ่งเข้า
-`/mcp` จริง
+ต่อผ่าน developer mode → connection type **Tunnel** แล้วถามเป็นภาษาไทย 3 คำถาม
+ทั้งหมดตอบถูก ตัวเลขตรงกับที่ยิง RPC ตรงเข้า Odoo ทุกบรรทัด
 
-ระหว่าง handshake เห็น response พวกนี้จาก mcp-server
+| ถามอะไร | tool ที่ถูกเรียก | ผล |
+| --- | --- | --- |
+| เชื่อมต่อได้ไหม เป็นใคร | `odoo_context` `odoo_version` | `19.0-20260817` · `MCP Bot` uid 8 |
+| มี contact กี่คน ขอดูบริษัท 5 แรก | `odoo_search_count` `odoo_search_read` | 40 ราย · เมืองและประเทศครบ |
+| สรุป contact แยกตามประเทศ | `odoo_read_group` | US 31 · San Marino 5 · Montenegro 1 · Liechtenstein 1 · ไม่ระบุ 2 |
+
+ข้อสามคือข้อที่บอกอะไรได้มากที่สุด — มันเลือก `odoo_read_group` แทนการดึง 40
+record มานับเอง และรายงานกลุ่ม "ไม่ระบุประเทศ" ที่ Odoo คืนมาเป็น
+`country_id: false` ได้ถูกต้อง แล้วคำนวณต่อเป็น 77.5% เอง
+
+**`note` ใน `odoo_context` ถูกเอาไปใช้จริง** ไม่ใช่แค่แสดงผล ตอนนั้น bot บน CE
+ยังไม่ได้ตั้ง timezone ChatGPT อ่านค่า `false` แล้วสรุปเองว่า "datetime จะถือเป็น
+UTC เป็นหลัก" ซึ่งเป็นข้อสรุปที่ถูกและเป็นเหตุผลทั้งหมดที่ tool ตัวนี้มีอยู่
+
+(ผลข้างเคียงที่ดี: การทดสอบจริงทำให้เห็นว่าลืมตั้ง `tz` ให้ bot บน CE ตั้งให้แล้ว
+ตอนนี้คืน `Asia/Bangkok`)
+
+### ยังไม่ได้ทดสอบจาก ChatGPT
+
+ฝั่งเขียน (`odoo_create` `odoo_write` `odoo_delete`) รั้ว `BLOCKED_MODELS` และ
+`odoo_get_models` ยังไม่ได้ลองผ่าน ChatGPT — ทั้งหมดผ่านแล้วเมื่อยิงตรงเข้า
+mcp-server สิ่งที่ยังไม่รู้คือ ChatGPT จะรายงาน `fields_not_applied` ตามจริงไหม
+หรือจะบอกว่าสำเร็จหมด
+
+### เรื่องโควตาข้อความ
+
+หนึ่งคำถามของผู้ใช้กินหลาย tool call ผู้ใช้ที่ทดสอบหมดโควตาไปใน 3 คำถาม
+เพราะฉะนั้นการออกแบบให้ประหยัด context — `odoo_read_group` ที่สรุปมาให้แทนการ
+ดึงดิบ และเพดาน 50 record — ช่วยประหยัดโควตาไปด้วย ไม่ใช่แค่ประหยัด context
+
+### ข้อสังเกตตอน handshake
+
+ระหว่างต่อเห็น response พวกนี้จาก mcp-server
 
 ```
 DELETE /mcp  405 Method Not Allowed
@@ -152,9 +182,9 @@ GET    /mcp  406 Not Acceptable
 ```
 
 มาจาก `stateless_http=True` ซึ่งไม่มี session ให้ปิดและไม่มี SSE stream ให้เปิด
-workshop ต้นทางตั้งค่าเดียวกันและใช้งานได้ จึงน่าจะไม่เป็นปัญหา แต่ถ้า ChatGPT
-ต่อไม่ได้ ให้สงสัยจุดนี้ก่อน
+**ไม่ได้ทำให้ ChatGPT ใช้งานไม่ได้** ตามที่พิสูจน์ข้างบน
 
-**หนึ่ง tunnel ต่อได้หนึ่ง MCP server** — ตอนทดสอบใช้ tunnel id ตัวเดียวกับ
-workshop `mydrive-mcp-tunnel-workshop` ได้เพราะ workshop ไม่ได้รันอยู่ ถ้าจะใช้
-สองอันพร้อมกันต้องสร้าง tunnel เพิ่ม
+### หนึ่ง tunnel ต่อได้หนึ่ง MCP server
+
+ตอนทดสอบใช้ tunnel id ตัวเดียวกับ workshop `mydrive-mcp-tunnel-workshop` ได้
+เพราะ workshop ไม่ได้รันอยู่ ถ้าจะใช้สองอันพร้อมกันต้องสร้าง tunnel เพิ่ม
