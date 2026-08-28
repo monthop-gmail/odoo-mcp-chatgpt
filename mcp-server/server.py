@@ -226,7 +226,16 @@ def odoo_read_group(
         list[str],
         Field(description="What to compute per group: '__count', or 'field:agg' such as 'amount_total:sum'."),
     ] = ["__count"],
-    limit: Annotated[int | None, Field(description="Maximum number of groups")] = None,
+    limit: Annotated[
+        int | None,
+        Field(
+            description=(
+                "Maximum number of groups to return. When it truncates the result, "
+                "the reply carries has_more and total_records -- use total_records "
+                "rather than summing the groups shown."
+            )
+        ),
+    ] = None,
     offset: Annotated[int, Field(description="Number of groups to skip")] = 0,
     order: Annotated[str | None, Field(description="Sort order over the grouped result")] = None,
     server: Server = None,
@@ -234,12 +243,36 @@ def odoo_read_group(
     """Group records and aggregate over them -- counts, sums, averages per group.
     Far cheaper than reading every record and tallying them yourself."""
     def go():
+        target = _target_for(model, server)
+
         kwargs: dict[str, Any] = {"offset": offset}
-        if limit is not None:
-            kwargs["limit"] = limit
         if order:
             kwargs["order"] = order
-        return group_by(_target_for(model, server), model, domain, groupby, aggregates, kwargs)
+        # Ask for one more group than requested. If it comes back, the caller is
+        # seeing a partial picture -- and a partial picture is indistinguishable
+        # from a complete one once the rows are on screen, which is how a
+        # truncated grouping turns into a wrong total.
+        if limit is not None:
+            kwargs["limit"] = limit + 1
+
+        rows = group_by(target, model, domain, groupby, aggregates, kwargs)
+
+        if limit is None or len(rows) <= limit:
+            return {"groups": rows}
+
+        # Only now is the extra round trip worth it: the caller needs a total
+        # that does not come from summing rows it cannot see.
+        total = odoo.execute(target, model, "search_count", [domain])
+        return {
+            "groups": rows[:limit],
+            "has_more": True,
+            "total_records": total,
+            "warning": (
+                f"Showing {limit} of more groups. Summing the rows above does not "
+                f"give the total -- {total} records match this domain. "
+                "Raise 'limit' to see the rest."
+            ),
+        }
     return run(go)
 
 
